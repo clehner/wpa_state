@@ -1,0 +1,24 @@
+{
+  "name": "wpa_state",
+  "version": "1.0.0",
+  "description": "Get wpa_supplicant's state",
+  "main": "index.js",
+  "dependencies": {
+    "unix-dgram": "^0.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clehner/wpa_state"
+  },
+  "homepage": "https://github.com/clehner/wpa_state",
+  "keywords": [
+    "network",
+    "wpa_supplicant",
+    "dbus"
+  ],
+  "author": "Charles Lehner (http://celehner.com/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/clehner/wpa_state/issues"
+  }
+}
