@@ -15,6 +15,9 @@ function WpaState (ifname) {
   this.ifname = ifname
 }
 
+WpaState.prototype.ssid = ''
+WpaState.prototype.state = 'unknown'
+
 WpaState.prototype.connect = function () {
   var serverPath = '/var/run/wpa_supplicant/' + this.ifname
   var clientPath = '/tmp/wpa_ctrl' + Math.random().toString(36).substr(1)
@@ -32,8 +35,12 @@ WpaState.prototype.connect = function () {
         if (err) return error('unable to attach to events')
         this.setLevel(2, function (err) {
           if (err) return error('unable to set level')
-          this.getState(function (err, state) {
+          this.getStatus(function (err, status) {
             if (err) return error(err)
+            this._onStatusChange({
+              state: status.wpa_state.toLowerCase(),
+              ssid: status.ssid
+            })
           })
         })
       })
@@ -85,9 +92,18 @@ WpaState.prototype._onMessage = function (msg) {
 
 WpaState.prototype._onCtrlEvent = function (level, msg) {
   var m
-  if (msg[0] === /*S*/83) {
-    if ((m = /^State: .* -> (.*)$/.exec(msg.toString()))) {
-      this._onStateChange(m[1])
+  switch (String.fromCharCode(msg[0])) {
+    case 'S': if ((m = /^State: .* -> (.*)$/.exec(msg.toString()))) {
+      this._onStatusChange({state: m[1].toLowerCase()})
+      break
+    }
+    /* fall through */
+    case 'T': if ((m = /^(?:SMT: )?Trying to .* \(SSID='(.*?)'/.exec(msg.toString()))) {
+      this._onStatusChange({ssid: m[1]})
+    }
+    break
+    case 'C': if (level === 3 && /^CTRL-EVENT-DISCONNECTED/.test(msg.toString())) {
+      this._onStatusChange({ssid: null})
     }
   }
 }
@@ -106,35 +122,40 @@ WpaState.prototype.attach = function (cb) {
   })
 }
 
-WpaState.prototype.getState = function (cb) {
+WpaState.prototype.getStatus = function (cb) {
   this.request('STATUS', function (msg) {
-    var match = /wpa_state=(\S*)/.exec(msg.toString())
-    if (match) {
-      this._onStateChange(match[1])
-      cb.call(this, null, match[1])
-    } else cb.call(this, 'unable to get state')
+    var status = {}
+    var lines = msg.toString().split('\n')
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i]
+      var j = line.indexOf('=')
+      if (j > 0) {
+        status[line.substr(0, j)] = line.substr(j + 1)
+      }
+    }
+    if (status.wpa_state) cb.call(this, null, status)
+    else cb.call(this, 'unable to get status')
   })
 }
 
-WpaState.prototype._onStateChange = function (state) {
-  state = state.toLowerCase()
-  if (state === this.state) return
-  this.state = state
-  this.emit('state', state)
-}
-
-var monitors = {}
-
-module.exports = function (ifname, onState) {
-  var monitor = monitors[ifname] || (monitors[ifname] = new WpaState(ifname))
-  if (onState) {
-    if (monitor.state) onState(monitor.state)
-    monitor.on('state', onState)
+WpaState.prototype._onStatusChange = function (status) {
+  var change = false
+  if ('state' in status && status.state !== this.state) {
+    change = true
+    this.state = status.state
+    this.emit('state', status.state)
   }
-  return monitor
+  if ('ssid' in status && status.ssid !== this.ssid) {
+    change = true
+    this.ssid = status.ssid
+    this.emit('ssid', status.ssid)
+  }
+  if (change) {
+    this.emit('status', {ssid: this.ssid, state: this.state})
+  }
 }
 
-module.exports.WpaState = WpaState
+module.exports = WpaState
 
 /* http://w1.fi/wpa_supplicant/devel/ctrl_iface_page.html
  * states

@@ -21,8 +21,8 @@ new WpaState('wlan0')
 ## CLI
 
 There is a command-line program included, `wpa_state`, which prints the
-connection state on a line each time it changes. This is intended to be
-suitable for piping through shell scripts.
+connection state and SSID on a line each time they change. This is intended to
+be suitable for piping through shell scripts.
 
 ## License
 

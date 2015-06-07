@@ -1,6 +1,6 @@
 {
   "name": "wpa_state",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Get wpa_supplicant's state",
   "main": "index.js",
   "bin": "./bin.js",
@@ -15,8 +15,7 @@
   "homepage": "https://github.com/clehner/wpa_state",
   "keywords": [
     "network",
-    "wpa_supplicant",
-    "dbus"
+    "wpa_supplicant"
   ],
   "author": "Charles Lehner (http://celehner.com/)",
   "license": "MIT",
