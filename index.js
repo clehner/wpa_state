@@ -21,10 +21,10 @@ WpaState.prototype._start = function () {
   .on('message', this._onMessage.bind(this))
   .on('error', error)
 
-  this.listen(clientPath, function (err) {
-    if (err) return error('unable to listen for events')
-    this.connect('/var/run/wpa_supplicant/' + this.ifname, function (err) {
-      if (err) return error('unable to connect to interface')
+  this.connect('/var/run/wpa_supplicant/' + this.ifname, function (err) {
+    if (err) return error('unable to connect to interface')
+    this.listen(clientPath, function (err) {
+      if (err) return error('unable to listen for events')
       this.attach(function (err) {
         if (err) return error('unable to attach to events')
         this.setLevel(2, function (err) {
