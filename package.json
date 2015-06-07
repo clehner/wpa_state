@@ -1,6 +1,6 @@
 {
   "name": "wpa_state",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Get wpa_supplicant's state",
   "main": "index.js",
   "dependencies": {

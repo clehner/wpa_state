@@ -15,20 +15,20 @@ function WpaState (ifname) {
 
 WpaState.prototype._start = function () {
   var clientPath = '/tmp/wpa_ctrl' + Math.random().toString(36).substr(1)
-  var error = this._error.bind(this)
+  var error = this._onError.bind(this)
 
   this.client = unix.createSocket('unix_dgram')
-  .on('message', this.onMessage.bind(this))
-  .on('error', this._error.bind(this))
+  .on('message', this._onMessage.bind(this))
+  .on('error', error)
 
   this.listen(clientPath, function (err) {
-    if (err) return error(err)
+    if (err) return error('unable to listen for events')
     this.connect('/var/run/wpa_supplicant/' + this.ifname, function (err) {
-      if (err) return error(err)
+      if (err) return error('unable to connect to interface')
       this.attach(function (err) {
-        if (err) return error(err)
+        if (err) return error('unable to attach to events')
         this.setLevel(2, function (err) {
-          if (err) return error(err)
+          if (err) return error('unable to set level')
           this.getState(function (err, state) {
             if (err) return error(err)
           })
@@ -38,18 +38,31 @@ WpaState.prototype._start = function () {
   })
 }
 
-WpaState.prototype._error = function (err) {
-  this.emit('error', err)
+WpaState.prototype._onError = function (err) {
+  if (this._handleError) this._handleError(err)
+  else this.emit('error', err)
 }
 
 WpaState.prototype.connect = function (path, cb) {
-  this.client.on('connect', cb.bind(this))
-  this.client.connect(path)
+  var done = function (err) {
+    this.client.removeListener('connect', done)
+    delete this._handleError
+    cb.call(this, err)
+  }.bind(this)
+  this._handleError = done
+  this.client.once('connect', done)
+    .connect(path)
 }
 
 WpaState.prototype.listen = function (clientPath, cb) {
-  this.client.on('listening', cb.bind(this))
-  this.client.bind(clientPath)
+  var done = function (err) {
+    this.client.removeListener('listening', done)
+    delete this._handleError
+    cb.call(this, err)
+  }.bind(this)
+  this._handleError = done
+  this.client.once('listening', done)
+    .bind(clientPath)
 }
 
 WpaState.prototype.request = function (req, cb) {
@@ -57,13 +70,13 @@ WpaState.prototype.request = function (req, cb) {
   this.client.send(new Buffer(req))
 }
 
-WpaState.prototype.onMessage = function (msg) {
+WpaState.prototype._onMessage = function (msg) {
   var handleReply
   if (msg[0] === /*<*/60 && msg[2] === /*>*/62) {
     this._onCtrlEvent(msg[1] - /*0*/48, msg.slice(3))
   } else if ((handleReply = this._handleReply)) {
     delete this._handleReply
-    handleReply.call(this, msg.toString())
+    handleReply.call(this, msg.toString().trim())
   }
 }
 
@@ -78,24 +91,25 @@ WpaState.prototype._onCtrlEvent = function (level, msg) {
 
 WpaState.prototype.setLevel = function (level, cb) {
   this.request('LEVEL ' + level, function (msg) {
-    if (msg !== 'OK\n') cb.call(this, new Error('unable to set level'))
-    else cb.call(this, null)
+    if (msg === 'OK') cb.call(this, null)
+    else cb.call(this, 'level: ' + msg)
   })
 }
 
 WpaState.prototype.attach = function (cb) {
   this.request('ATTACH', function (msg) {
-    if (msg !== 'OK\n') cb.call(this, new Error('unable to attach'))
-    else cb.call(this, null)
+    if (msg === 'OK') cb.call(this, null)
+    else cb.call(this, 'attach: ' + msg)
   })
 }
 
 WpaState.prototype.getState = function (cb) {
   this.request('STATUS', function (msg) {
     var match = /wpa_state=(\S*)/.exec(msg.toString())
-    if (!match) return cb.call(this, new Error('unable to get state'))
-    this._onStateChange(match[1])
-    cb.call(this, null, match[1])
+    if (match) {
+      this._onStateChange(match[1])
+      cb.call(this, null, match[1])
+    } else cb.call(this, 'unable to get state')
   })
 }
 
