@@ -6,14 +6,17 @@ inherits(WpaState, EventEmitter)
 
 function WpaState (ifname) {
   if (!(this instanceof WpaState)) return new WpaState(ifname)
+
+  if (typeof ifname !== 'string') {
+    throw new Error('ifname should be a string')
+  }
+
   EventEmitter.call(this)
-
   this.ifname = ifname
-
-  process.nextTick(this._start.bind(this))
 }
 
-WpaState.prototype._start = function () {
+WpaState.prototype.connect = function () {
+  var serverPath = '/var/run/wpa_supplicant/' + this.ifname
   var clientPath = '/tmp/wpa_ctrl' + Math.random().toString(36).substr(1)
   var error = this._onError.bind(this)
 
@@ -21,7 +24,7 @@ WpaState.prototype._start = function () {
   .on('message', this._onMessage.bind(this))
   .on('error', error)
 
-  this.connect('/var/run/wpa_supplicant/' + this.ifname, function (err) {
+  this._connect(serverPath, function (err) {
     if (err) return error('unable to connect to interface')
     this.listen(clientPath, function (err) {
       if (err) return error('unable to listen for events')
@@ -43,7 +46,7 @@ WpaState.prototype._onError = function (err) {
   else this.emit('error', err)
 }
 
-WpaState.prototype.connect = function (path, cb) {
+WpaState.prototype._connect = function (path, cb) {
   var done = function (err) {
     this.client.removeListener('connect', done)
     delete this._handleError
@@ -123,9 +126,6 @@ WpaState.prototype._onStateChange = function (state) {
 var monitors = {}
 
 module.exports = function (ifname, onState) {
-  if (typeof ifname !== 'string') {
-    throw new Error('ifname should be a string')
-  }
   var monitor = monitors[ifname] || (monitors[ifname] = new WpaState(ifname))
   if (onState) {
     if (monitor.state) onState(monitor.state)

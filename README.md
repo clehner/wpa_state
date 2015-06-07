@@ -5,13 +5,17 @@ Get the connection state of wpa_supplicant
 ## Example
 
 ```js
-require('wpa_state')('wlan0', function (state) {
+var WpaState = require('wpa_state')
+new WpaState('wlan0')
+.on('state', function (state) {
 	if (state == 'completed') {
 		console.log('internet')
 	} else if (state == 'disconnected') {
 		console.log('no internet')
 	}
 })
+.connect()
+
 ```
 
 ## CLI
