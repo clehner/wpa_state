@@ -2,7 +2,7 @@
 
 Get the connection state of wpa_supplicant
 
-## Usage
+## Example
 
 ```js
 require('wpa_state')('wlan0', function (state) {
@@ -13,6 +13,12 @@ require('wpa_state')('wlan0', function (state) {
 	}
 })
 ```
+
+## CLI
+
+There is a command-line program included, `wpa_state`, which prints the
+connection state on a line each time it changes. This is intended to be
+suitable for piping through shell scripts.
 
 ## License
 

@@ -1,8 +1,10 @@
 {
   "name": "wpa_state",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Get wpa_supplicant's state",
   "main": "index.js",
+  "bin": "./bin.js",
+  "man": "./wpa_state.1",
   "dependencies": {
     "unix-dgram": "^0.2.1"
   },

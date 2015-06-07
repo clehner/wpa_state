@@ -1,0 +1,24 @@
+.Dd May 7, 2015
+.Dt WPA_STATE 1
+.Os cel
+.Sh NAME
+.Nm wpa_state
+.Nd print changes to wpa_supplicant's connection state
+.Sh SYNOPSIS
+.Nm
+.Ar ifname
+.Sh DESCRIPTION
+.Nm
+connects to wpa_supplicant running on interface
+.Ar ifname ,
+and prints out the connection state. Whenever the connection state changes,
+.Nm
+prints it to stdout.
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 1
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr wpa_supplicant 8
+.Xr wpa_cli 1
