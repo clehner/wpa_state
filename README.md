@@ -1,11 +1,13 @@
-# wpa_state
+# Node WPA CLI
 
-Get the connection state of wpa_supplicant
+An event-oriented library to interact with `wpa_supplicant`. The aim of the project is to offer a simple interface to control
+your wifi antenna(s) through Node.JS, by supporting all the 'offical' command line interface commands. I'll start adding 
+most of the p2p commands first.
 
 ## Example
 
 ```js
-var WpaState = require('wpa_state')
+var WpaState = require('node_wpa_cli')
 new WpaState('wlan0')
 .on('state', function (state) {
 	if (state == 'completed') {
@@ -17,12 +19,6 @@ new WpaState('wlan0')
 .connect()
 
 ```
-
-## CLI
-
-There is a command-line program included, `wpa_state`, which prints the
-connection state and SSID on a line each time they change. This is intended to
-be suitable for piping through shell scripts.
 
 ## License
 
