@@ -1,25 +1,27 @@
 {
-  "name": "wpa_state",
+  "name": "node_wpa_cli",
   "version": "1.3.0",
-  "description": "Get wpa_supplicant's state",
+  "description": "Control wpa_supplicant using Node.JS",
   "main": "index.js",
-  "bin": "./bin.js",
-  "man": "./wpa_state.1",
+  "bin": "./wpa_cli.js",
+  "man": "./node_wpa_cli.1",
   "dependencies": {
     "unix-dgram": "^0.2.1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/clehner/wpa_state"
+    "url": "https://github.com/afilini/node_wpa_cli"
   },
-  "homepage": "https://github.com/clehner/wpa_state",
+  "homepage": "https://github.com/afilini/node_wpa_cli",
   "keywords": [
     "network",
-    "wpa_supplicant"
+    "wpa_supplicant",
+    "wpa_cli",
+    "wifi"
   ],
-  "author": "Charles Lehner (http://celehner.com/)",
+  "author": "Alekos Filini (@afilini)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/clehner/wpa_state/issues"
+    "url": "https://github.com/afilini/node_wpa_cli/issues"
   }
 }

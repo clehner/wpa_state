@@ -1,5 +1,5 @@
 var unix = require('unix-dgram'),
-    inherits = require('inherits'),
+    inherits = require('util').inherits,
     EventEmitter = require('events').EventEmitter;
 
 inherits(WpaCLI, EventEmitter);
@@ -11,11 +11,13 @@ function WpaCLI(ifname) {
         throw new Error('ifname should be a string')
     }
 
+    this.ignoreAck = false;
+
     EventEmitter.call(this);
     this.ifname = ifname
 }
 
-WpaCLI.prototype.connect = function () {
+WpaCLI.prototype.connect = function (callback) {
     var serverPath = '/var/run/wpa_supplicant/' + this.ifname;
     var clientPath = '/tmp/wpa_ctrl' + Math.random().toString(36).substr(1);
     var error = this._onError.bind(this);
@@ -31,11 +33,10 @@ WpaCLI.prototype.connect = function () {
             if (err) return error('unable to listen for events');
             this.attach(function (err) {
                 if (err) return error('unable to attach to events');
-                this.setLevel(2, function (err) {
-                    if (err) return error('unable to set level');
 
-
-                });
+                this.emit('connect');
+                if (typeof callback === 'function')
+                    callback();
             });
         });
     });
@@ -74,13 +75,17 @@ WpaCLI.prototype.listen = function (clientPath, cb) {
 
 WpaCLI.prototype.request = function (req, cb) {
     this._handleReply = cb;
-    this.client.send(new Buffer(req))
+    this.client.send(new Buffer(req));
 };
 
 WpaCLI.prototype._onMessage = function (msg) {
     var handleReply;
-    if (msg[0] === /*<*/60 && msg[2] === /*>*/62) {
-        this._onCtrlEvent(msg[1] - /*0*/48, msg.slice(3))
+    this.emit('rawMsg', msg);
+
+    if (msg.length > 3 && msg[0] === 60 && msg[2] === 62) {
+        this._onCtrlEvent(msg[1] - 48, msg.slice(3))
+    } else if (this.ignoreAck && msg.toString().substr(0, 3).indexOf('OK') != -1) { // This is just an ack message, ignoring it...
+        this.ignoreAck = false;
     } else if ((handleReply = this._handleReply)) {
         delete this._handleReply;
         handleReply.call(this, msg.toString().trim())
@@ -88,24 +93,13 @@ WpaCLI.prototype._onMessage = function (msg) {
 };
 
 WpaCLI.prototype._onCtrlEvent = function (level, msg) {
-    var m;
-    switch (String.fromCharCode(msg[0])) {
-        case 'S':
-            if ((m = /^State: .* -> (.*)$/.exec(msg.toString()))) {
-                this._onStatusChange({state: m[1].toLowerCase()});
-                break;
-            }
-        /* fall through */
-        case 'T':
-            if ((m = /^(?:SMT: )?Trying to .* \(SSID='(.*?)'/.exec(msg.toString()))) {
-                this._onStatusChange({ssid: m[1]})
-            }
-            break;
-        case 'C':
-            if (level === 3 && /^CTRL-EVENT-DISCONNECTED/.test(msg.toString())) {
-                this._onStatusChange({ssid: null})
-            }
-    }
+    var messageParts = msg.toString().split(' ');
+
+    var messageName = messageParts[0];
+    messageParts.splice(1);
+
+    this.emit(messageParts);
+    this.emit('event-' + level, messageName, messageParts);
 };
 
 WpaCLI.prototype.setLevel = function (level, cb) {
@@ -114,7 +108,7 @@ WpaCLI.prototype.setLevel = function (level, cb) {
             cb.call(this, null);
         else
             cb.call(this, 'level: ' + msg);
-    })
+    });
 };
 
 WpaCLI.prototype.attach = function (cb) {
@@ -123,7 +117,7 @@ WpaCLI.prototype.attach = function (cb) {
             cb.call(this, null);
         else
             cb.call(this, 'attach: ' + msg);
-    })
+    });
 };
 
 WpaCLI.prototype.detach = function (cb) {
@@ -136,6 +130,7 @@ WpaCLI.prototype.detach = function (cb) {
 };
 
 WpaCLI.prototype.getStatus = function (cb) {
+    this.ignoreAck = true;
     this.request('STATUS', function (msg) {
         var status = {};
         var lines = msg.toString().split('\n');
@@ -146,11 +141,52 @@ WpaCLI.prototype.getStatus = function (cb) {
                 status[line.substr(0, j)] = line.substr(j + 1)
             }
         }
+
         if (status.wpa_state)
             cb.call(this, null, status);
         else
             cb.call(this, 'unable to get status');
-    })
+    });
+};
+
+function APStation(bssid, frequency, signal, encryption, ssid) {
+    var encRegex = /\[([A-Z0-9\-]+)\]/g;
+
+    var encArray = [];
+    var match;
+
+    while ((match = encRegex.exec(encryption)) != null)
+        encArray.push(match[1]);
+
+    return {
+        bssid: bssid,
+        frequency: frequency,
+        encryption: encArray,
+        signal: signal,
+        ssid: ssid
+    };
+}
+
+WpaCLI.prototype.getScanResults = function (cb) {
+    this.ignoreAck = true;
+    this.request('SCAN_RESULTS', function (msg) {
+        var stations = [];
+        var lines = msg.toString().split('\n');
+
+        for (var i = 1; i < lines.length; i++) {
+            var lineSplit = lines[i].split('\t');
+            stations.push(new APStation(lineSplit[0], lineSplit[1], lineSplit[2], lineSplit[3], lineSplit[4]));
+        }
+
+        cb.call(this, null, stations);
+    });
+};
+
+WpaCLI.prototype.scan = function (cb) {
+    this.ignoreAck = true;
+    this.request('SCAN');
+
+    this.once('CTRL-EVENT-SCAN-RESULTS', cb);
 };
 
 WpaCLI.prototype._onStatusChange = function (status) {
