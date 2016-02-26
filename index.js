@@ -189,21 +189,45 @@ WpaCLI.prototype.scan = function (cb) {
     this.once('CTRL-EVENT-SCAN-RESULTS', cb);
 };
 
-WpaCLI.prototype._onStatusChange = function (status) {
-    var change = false;
-    if ('state' in status && status.state !== this.state) {
-        change = true;
-        this.state = status.state;
-        this.emit('state', status.state);
+WpaCLI.prototype.addNetwork = function (params, cb) {
+    if (typeof params !== 'object') {
+        cb.call(this, 'wrong params type');
+        return false;
     }
-    if ('ssid' in status && status.ssid !== this.ssid) {
-        change = true;
-        this.ssid = status.ssid;
-        this.emit('ssid', status.ssid);
-    }
-    if (change) {
-        this.emit('status', {ssid: this.ssid, state: this.state});
-    }
+
+    this.ignoreAck = true;
+    var done = false;
+
+    this.request('ADD_NETWORK', function (network_id) {
+        for (var key in params)
+            if (done) {
+                break;
+            } else if (params.hasOwnProperty(key)) {
+                this.request('SET_NETWORK ' + network_id + ' ' + key + ' "' + params[key] + '"', function (status) {
+                    if (status != 'OK') {
+                        if (typeof cb === 'function')
+                            cb.call(this, 'Param error');
+                        done = true;
+                    }
+
+                });
+            }
+
+        if (!done && typeof cb === 'function')
+            cb.call(this, null, network_id);
+    });
+};
+
+WpaCLI.prototype.removeNetwork = function (netId, cb) {
+    this.request('REMOVE_NETOWRK ' + netId, cb);
+};
+
+WpaCLI.prototype.disableNetwork = function (netId, cb) {
+    this.request('DISABLE_NETOWRK ' + netId, cb);
+};
+
+WpaCLI.prototype.enableNetwork = function (netId, cb) {
+    this.request('ENABLE_NETWORK ' + netId, cb);
 };
 
 module.exports = WpaCLI;

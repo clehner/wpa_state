@@ -1,17 +1,38 @@
-/**
- * Copyright (C) 2016 Alekos Filini (@afilini)
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- */
+var wpa = require('./');
+
+var handle = new wpa('wlan1');
+handle.connect();
+
+handle.on('event-3', function (evt) { // Log all the level 3 messages
+    console.log(evt);
+});
+
+function addNetwork() {
+    handle.addNetwork({ssid: 'MySuperNetwork', psk: 'password123'}, function (err, newId) {
+        if (err) {
+            console.error(err);
+            return false;
+        }
+
+        console.log('New network id:', newId);
+
+        handle.enableNetwork(newId, function (status) {
+            console.log('Enable status:', status);
+
+            handle.removeNetwork(newId, function (status) {
+                if (status === 'OK')
+                    console.log('Network removed');
+                else
+                    console.log('Could not remove the network ', newId);
+            })
+        });
+    });
+}
+
+handle.scan(function () {
+    handle.getScanResults(function (err, data) {
+        console.log(err, data);
+
+        addNetwork(); // I made a separate function just not to add all of the code above in this callback.
+    });
+});
